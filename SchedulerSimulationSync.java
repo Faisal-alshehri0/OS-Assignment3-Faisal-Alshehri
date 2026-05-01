@@ -117,10 +117,9 @@ class Process implements Runnable {
 
     @Override
     public void run() {
-        // TODO #3: Acquire CPU semaphore before executing
-        // This ensures only allowed number of processes run simultaneously
-
         try {
+            SharedResources.cpuSemaphore.acquire();
+
             if (startTime == -1) {
                 startTime = System.currentTimeMillis();
             }
@@ -151,16 +150,18 @@ class Process implements Runnable {
                 System.out.println();
 
             } catch (InterruptedException e) {
-                System.out.println(Colors.RED + "\n  ✗ " + name + " was interrupted." + Colors.RESET);
+                e.printStackTrace();
             }
 
             remainingTime -= runTime;
+
             int overallProgress = (int) (((double) (burstTime - remainingTime) / burstTime) * 100);
             String overallProgressBar = createProgressBar(overallProgress, 20);
 
             System.out.println(Colors.YELLOW + "  ⏸ " + Colors.CYAN + name + Colors.RESET +
                     " completed quantum " + Colors.BRIGHT_YELLOW + runTime + "ms" + Colors.RESET +
                     " │ Overall progress: " + overallProgressBar);
+
             System.out.println(Colors.MAGENTA + "     Remaining time: " + remainingTime + "ms" + Colors.RESET);
 
             if (remainingTime > 0) {
@@ -173,15 +174,18 @@ class Process implements Runnable {
                 SharedResources.addWaitingTime(waitingTime);
                 SharedResources.incrementCompletedProcess();
                 SharedResources.logExecution(name + " completed execution");
+
                 System.out.println(Colors.BRIGHT_GREEN + "  ✓ " + Colors.BOLD + Colors.CYAN + name +
                         Colors.RESET + Colors.BRIGHT_GREEN + " finished execution!" +
                         Colors.RESET);
             }
+
             System.out.println();
 
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         } finally {
-            // TODO #4: Release CPU semaphore here
-            // Always release in finally block to prevent deadlocks!
+            SharedResources.cpuSemaphore.release();
         }
     }
 
@@ -202,9 +206,12 @@ class Process implements Runnable {
     public void runToCompletion() {
         // TODO: Similar synchronization needed here
         try {
+            SharedResources.cpuSemaphore.acquire();
+
             System.out.println(Colors.BRIGHT_CYAN + "  ⚡ " + Colors.BOLD + Colors.CYAN + name +
                     Colors.RESET + Colors.BRIGHT_CYAN + " is the last process, running to completion" +
                     Colors.RESET + " [" + remainingTime + "ms]");
+
             Thread.sleep(remainingTime);
             remainingTime = 0;
             completionTime = System.currentTimeMillis();
@@ -216,8 +223,11 @@ class Process implements Runnable {
             System.out.println(Colors.BRIGHT_GREEN + "  ✓ " + Colors.BOLD + Colors.CYAN + name +
                     Colors.RESET + Colors.BRIGHT_GREEN + " finished execution!" + Colors.RESET);
             System.out.println();
+
         } catch (InterruptedException e) {
             System.out.println(Colors.RED + "  ✗ " + name + " was interrupted." + Colors.RESET);
+        } finally {
+            SharedResources.cpuSemaphore.release();
         }
     }
 
